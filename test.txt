@@ -1,0 +1,12 @@
+# all contents after "#" is treated as comments and simply ignored.
+@test.tif # line starting with "@" adds new slide entry.
+1 4 # a slide has one or more regions. a region starts from line of L N, L is its label and N is the number of polygon vertices.
+1250 1250 # N vertex positions follows.
+2500 1250
+2500 2500
+1250 2500
+2 4 # another region entry can follow.
+2500 2500
+3750 2500
+3750 3750
+2500 3750
