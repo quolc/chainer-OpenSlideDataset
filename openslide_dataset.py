@@ -17,7 +17,7 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
     # - 'label'   uniform label selection, uniform position selection
     fetch_modes = ['area', 'slide', 'label']
 
-    def __init__(self, path, root, src_size, patch_size, fetch_mode='area', flip=False, dump_patch=None):
+    def __init__(self, path, root, src_size, patch_size, fetch_mode='area', rotation=True, flip=False, dump_patch=None):
         self.path = path
         self.root = root
         self.src_size = src_size
@@ -25,6 +25,7 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
         self.fetch_mode = fetch_mode
         if not self.fetch_mode in LabeledOpenSlideDataset.fetch_modes:
             raise Exception('invalid fetch_mode %r' % self.fetch_mode)
+        self.rotation = rotation
         self.flip = flip
         self.dump_patch = dump_patch
 
@@ -313,7 +314,10 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
                    a1 * self.triangulation[slide_id][region_id][tri_id][1][1] + \
                    a2 * self.triangulation[slide_id][region_id][tri_id][2][1]
 
-            angle = random.random() * math.pi * 2
+            if self.rotation:
+                angle = random.random() * math.pi * 2
+            else:
+                angle = -math.pi/4
             angles = [angle, angle + math.pi/2, angle + math.pi, angle + math.pi/2*3]
             discard = False
             corners = []
@@ -341,7 +345,6 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
         result = rotated[int(crop_size/2-self.src_size/2):int(crop_size/2+self.src_size/2),\
                          int(crop_size/2-self.src_size/2):int(crop_size/2+self.src_size/2)]
         result = cv2.resize(result, (self.patch_size, self.patch_size)).transpose((2,0,1))
-        # print(result.shape)
 
         if self.flip and random.randint(0, 1):
             result = result[:, :, ::-1]
