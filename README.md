@@ -33,3 +33,9 @@ $ cd ..
 $ python train_example.py train.txt val.txt --root ./test_slides --test --gpu 0
 
 ```
+
+## ToDo
+
+- Add annotation visualization script
+- Write detailed manual
+
