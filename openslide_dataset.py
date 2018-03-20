@@ -17,7 +17,7 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
     # - 'label'   uniform label selection, uniform position selection
     fetch_modes = ['area', 'slide', 'label']
 
-    def __init__(self, path, root, src_size, patch_size, fetch_mode='area', flip=False):
+    def __init__(self, path, root, src_size, patch_size, fetch_mode='area', flip=False, dump_patch=None):
         self.path = path
         self.root = root
         self.src_size = src_size
@@ -26,6 +26,7 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
         if not self.fetch_mode in LabeledOpenSlideDataset.fetch_modes:
             raise Exception('invalid fetch_mode %r' % self.fetch_mode)
         self.flip = flip
+        self.dump_patch = dump_patch
 
         self.names = []
         self.labels = []
@@ -149,7 +150,7 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
 
                 for x, y in region:
                     if w < x or h < y:
-                        raise Exception('invalid polygon vertex position (%d, %d)!' % (x, y))
+                        raise Exception('invalid polygon vertex position (%d, %d) in %s!' % (x, y, self.names[i]))
 
                 # triangle area calculation
                 self.weights[-1].append([])
@@ -186,13 +187,14 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
 
         # Walker's alias method for weighted sampling of triangles
         def walker_precomputation(probs):
+            EPS = 1e-10
             a = [-1] * len(probs)
             p = [0] * len(probs)
             fixed = 0
             while fixed < len(probs):
                 # block assignment of small items
                 for i in range(len(probs)):
-                    if p[i] == 0 and probs[i] * len(probs) <= 1.0:
+                    if p[i] == 0 and probs[i] * len(probs) <= (1.0 + EPS):
                         p[i] = probs[i] * len(probs)
                         probs[i] = 0
                         fixed += 1
@@ -331,7 +333,7 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
         cropped = np.asarray(self.slides[slide_id].read_region(
                                                     (int(posx - crop_size/2),
                                                     int(posy - crop_size/2)),
-                                                    0, (crop_size, crop_size)))
+                                                    0, (crop_size, crop_size)), dtype=np.float32)[:,:,:3]
         mat = cv2.getRotationMatrix2D((crop_size/2, crop_size/2),
                                           45 + 360 * angle/(2*math.pi), 1)
         rotated = cv2.warpAffine(cropped, mat, (crop_size, crop_size))
@@ -343,5 +345,12 @@ class LabeledOpenSlideDataset(chainer.dataset.DatasetMixin):
 
         if self.flip and random.randint(0, 1):
             result = result[:, :, ::-1]
+        result *= (1.0 / 255.0)
+
+        # debug
+        if self.dump_patch is not None:
+            from PIL import Image
+            im = Image.fromarray(np.uint8(result.transpose((1,2,0))*255))
+            im.save('./%s/%d_%d-%d-%d.png' % (self.dump_patch, self.labels[slide_id][region_id], slide_id, region_id, i))
 
         return result, self.labels[slide_id][region_id]
